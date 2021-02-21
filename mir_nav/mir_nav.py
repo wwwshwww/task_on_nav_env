@@ -20,7 +20,6 @@ class Mir100NavEnv(gym.Env):
     resolution = 0.05
     
     def __init__(self, rs_address=None, max_episode_steps=500, **kwargs):
-        self.mir100 = mir100_util.Mir100()
         self.max_episde_steps = max_episode_steps
         self.elapsed_steps = 0
         
@@ -73,7 +72,6 @@ class Mir100NavEnv(gym.Env):
               room_length_max: float=9.0, 
               room_mass_min: float=20.0, 
               room_mass_max: float=36.0, 
-              room_wall_height: float=0.8, 
               room_wall_thickness: float=0.05,
               target_poses:List[List[float]]=None):
         
@@ -93,7 +91,7 @@ class Mir100NavEnv(gym.Env):
         
         ignore_start = 1
         map_state_len = (self.map_size**2)*2
-        ignore_len = map_state_len + 6
+        ignore_len = map_state_len + 7
         ignore_index = ignore_start + ignore_len
         
         rs_state[0] = self.map_size
@@ -202,7 +200,7 @@ class Mir100NavEnv(gym.Env):
 #         rs_state = map_size + map_data + map_data_trueth + agent_pose + agent_twist + is_collision \
 #                     + is_change_room + is_change_pose + room_generator_param
         
-        return self.map_size**2 + 17
+        return (self.map_size**2)*2 + 17
     
     def _robot_server_state_to_env_state(self, rs_state):
         map_state_len = (self.map_size**2)*2
