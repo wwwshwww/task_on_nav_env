@@ -67,11 +67,12 @@ class Mir100NavEnv(gym.Env):
               new_room: bool,
               new_agent_pose: bool, 
               obstacle_count: int=10, 
-              obstacle_size: float=0.7, 
+              obstacle_size: float=0.4, 
               target_size: float=0.2, 
-              room_length_max: float=9.0, 
-              room_mass_min: float=20.0, 
-              room_mass_max: float=36.0, 
+              room_length_max: float=8.0, 
+              room_mass_min: float=36.0, 
+              room_mass_max: float=40.0, 
+              wall_height: float=0.8,
               room_wall_thickness: float=0.05,
               target_poses:List[List[float]]=None):
         
@@ -91,7 +92,7 @@ class Mir100NavEnv(gym.Env):
         
         ignore_start = 1
         map_state_len = (self.map_size**2)*2
-        ignore_len = map_state_len + 7
+        ignore_len = map_state_len + 6
         ignore_index = ignore_start + ignore_len
         
         rs_state[0] = self.map_size
@@ -103,9 +104,10 @@ class Mir100NavEnv(gym.Env):
         rs_state[ignore_index+5] = room_length_max
         rs_state[ignore_index+6] = room_mass_min
         rs_state[ignore_index+7] = room_mass_max
-        rs_state[ignore_index+8] = room_wall_thickness
+        rs_state[ignore_index+8] = wall_height
+        rs_state[ignore_index+9] = room_wall_thickness
         
-        state_msg = robot_server_pb2.State(state=rs_state.tolist())
+        state_msg = robot_server_pb2.State(state=rs_state)
         if not self.client.set_state_msg(state_msg):
             raise RobotServerError("set_state")
             
