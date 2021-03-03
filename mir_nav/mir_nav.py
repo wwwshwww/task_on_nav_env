@@ -33,7 +33,7 @@ class Mir100NavEnv(gym.Env):
         
 #         self.action_space = spaces.Dict({
 #             'position': spaces.Box(low=-half, high=half, shape=(2,), dtype=np.float32),
-#             'orientation': spaces.Box(low=0, high=np.pi*2, dtype=np.float32)
+#             'orientation': spaces.Box(low=-pi, high=np.pi, dtype=np.float32)
 #         })
 
         self.seed()
@@ -117,12 +117,11 @@ class Mir100NavEnv(gym.Env):
         # in World frame
         self.start_frame = rs_state[1+map_state_len : 1+map_state_len+3]
         
-        self.target_num = len(rs_state[ignore_index+9:])//3
-        if len(rs_state[ignore_index+9:]) % 3 != 0:
-            raise Exception("wrong length of targets in robot server state")
+        self.target_num = len(rs_state[ignore_index+10:])//3
+        assert len(rs_state[ignore_index+10:]) % 3 == 0
             
         self.agent_pose = np.array([0, 0, 0]) # [x,y,yaw] pose in map frame
-        self.target_pose = np.reshape(rs_state[ignore_index+9:], [self.target_num, 3])
+        self.target_pose = np.reshape(rs_state[ignore_index+10:], [self.target_num, 3])
         self.agent_twist = rs_state[2+map_state_len : 2+map_state_len+2]
         self.map_trueth = rs_state[1+self.map_size**2 : 1+map_state_len]
         
@@ -229,8 +228,8 @@ class Mir100NavEnv(gym.Env):
         max_polar_r = np.inf
         min_polar_theta = -np.pi
         max_polar_theta = np.pi
-        min_yaw = 0
-        max_yaw = np.pi*2
+        min_yaw = -np.pi
+        max_yaw = np.pi
         
         min_pose_obs = np.array([min_polar_r, min_polar_theta, min_yaw])
         max_pose_obs = np.array([max_polar_r, max_polar_theta, max_yaw])
