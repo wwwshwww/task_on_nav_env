@@ -40,7 +40,7 @@ class Mir100NavEnv(gym.Env):
         self.distance_threshold = 0.2
         self.min_target_dist = 1.0
         
-        half = map_size*resolution/2
+        half = self.map_size*self.resolution/2
         self.movable_range = half/2
         
         self.action_space = spaces.Box(low=np.array([0,-1,-1]), high=np.array([1,1,1]))
@@ -121,7 +121,7 @@ class Mir100NavEnv(gym.Env):
         assert len(rs_state[ignore_index+10:]) % 3 == 0
             
         self.agent_pose = np.array([0, 0, 0]) # [x,y,yaw] pose in map frame
-        self.target_pose = np.reshape(rs_state[ignore_index+10:], [self.target_num, 3])
+        self.target_pose = np.reshape(rs_state[ignore_index+10:], (self.target_num, 3))
         self.agent_twist = rs_state[2+map_state_len : 2+map_state_len+2]
         self.map_trueth = rs_state[1+self.map_size**2 : 1+map_state_len]
         
@@ -215,14 +215,14 @@ class Mir100NavEnv(gym.Env):
 #         state = np.concatenate([rs_state[1:self.map_size**2], [polar_r, polar_theta, yaw]])
         
         state = {
-            'occupancy_grid': np.array(rs_state[1:self.map_size**2]),
+            'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.int16),
             'agent_pose': np.array([polar_r, polar_theta, yaw])
         }
 
         return state
     
     def _get_observation_space(self):
-        occupancy_grid_space = spaces.Box(low=0, high=256, shape=(self.map_size**2,), dtype=np.int16)
+        occupancy_grid_space = spaces.Box(low=-1, high=101, shape=(self.map_size**2,), dtype=np.int16)
         
         min_polar_r = 0
         max_polar_r = np.inf
