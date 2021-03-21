@@ -1,0 +1,7 @@
+
+## Mir100 Navigation Environment
+register(
+    id='CubeRoomOnNavigationStack-v0',
+    entry_point='robo_gym.envs:CubeRoomOnNavigationStack',
+    max_episode_steps=500
+)
