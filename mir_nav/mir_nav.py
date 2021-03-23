@@ -16,8 +16,10 @@ from typing import List
 
 class Mir100NavEnv(gym.Env):
     real_robot = False
+    slam_map_size = 512
+    slam_resolution = 0.05
     map_size = 256
-    resolution = 0.05
+    resolution = slam_resolution * (slam_map_size / map_size)
     
     def __init__(self, rs_address=None, max_episode_steps=500, **kwargs):
         self.max_episde_steps = max_episode_steps
@@ -43,12 +45,12 @@ class Mir100NavEnv(gym.Env):
         half = self.map_size*self.resolution/2
         self.movable_range = half/2
         
-        self.action_space = spaces.Box(low=np.array([0,-1,-1]), high=np.array([1,1,1]))
+        self.action_space = spaces.Box(low=np.array([0.0,-1.0,-1.0]), high=np.array([1.0,1.0,1.0]))
         self.action_range = np.array([self.movable_range, np.pi, np.pi])
         
         self.map_trueth = []
         self.start_frame = [0,0,0] # initial pose [x,y,yaw] in world frame when started episode 
-        self.agent_pose = [0,0,0] # now pose [x,y,yaw] in map frame
+        self.agent_pose = [0,0,0] # now pose [x,y,yaw] in world frame
         self.target_num = 0
         self.target_pose = [] # target poses [[x,y,yaw],] in world frame
         
@@ -66,12 +68,12 @@ class Mir100NavEnv(gym.Env):
     def reset(self, 
               new_room: bool,
               new_agent_pose: bool, 
-              obstacle_count: int=10, 
+              obstacle_count: int=23, 
               obstacle_size: float=0.4, 
               target_size: float=0.2, 
-              room_length_max: float=8.0, 
-              room_mass_min: float=36.0, 
-              room_mass_max: float=40.0, 
+              room_length_max: float=10.0, 
+              room_mass_min: float=55.0, 
+              room_mass_max: float=60.0, 
               wall_height: float=0.8,
               room_wall_thickness: float=0.05,
               target_poses:List[List[float]]=None):
@@ -120,7 +122,7 @@ class Mir100NavEnv(gym.Env):
         self.target_num = len(rs_state[ignore_index+10:])//3
         assert len(rs_state[ignore_index+10:]) % 3 == 0
             
-        self.agent_pose = np.array([0, 0, 0]) # [x,y,yaw] pose in map frame
+        self.agent_pose = np.array(self.start_frame) # [x,y,yaw] pose in world frame
         self.target_pose = np.reshape(rs_state[ignore_index+10:], (self.target_num, 3))
         self.agent_twist = rs_state[2+map_state_len : 2+map_state_len+2]
         self.map_trueth = rs_state[1+self.map_size**2 : 1+map_state_len]
@@ -130,7 +132,6 @@ class Mir100NavEnv(gym.Env):
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
             raise InvalidStateError()
-            
         return self.state
     
     def _reward(self, rs_state, action):
@@ -148,23 +149,22 @@ class Mir100NavEnv(gym.Env):
         x, y = polar_to_cartesian_2d(rs_action[0], rs_action[1])
         rs_action = [x, y, rs_action[2]]
         # Transformate coordinates of agent frame to map frame
-        rs_action = transform_2d(rs_action[0], rs_action[1], rs_action[2], *self.agent_pose)
+        map_trans = polar_to_cartesian_2d(*self.state['agent_pose'][:2])
+        rs_action = transform_2d(
+            rs_action[0], rs_action[1], rs_action[2], 
+            map_trans[0], map_trans[1], self.state['agent_pose'][2]
+        )
         
         # Send action to Robot Server
-        if not self.client.send_action(rs_action.tolist()):
+        if not self.client.send_action(rs_action):
             raise RobotServerError("send_action")
         
         # Get state from Robot Server
         rs_state = self.client.get_state_msg().state
         # Convert the state from Robot Server format to environment format
         self.state = self._robot_server_state_to_env_state(rs_state)
-        # Set agent_pose in map frame
-        self.agent_pose = polar_to_cartesian_2d(
-            self.state['agent_pose'][0],
-            self.state['agent_pose'][1],
-            self.state['agent_pose'][2],
-            *self.start_frame
-        )
+        # Set agent_pose in world frame
+        self.agent_pose = self._squeeze_agent_pose(rs_state)
         
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -203,9 +203,13 @@ class Mir100NavEnv(gym.Env):
         
         return (self.map_size**2)*2 + 17
     
-    def _robot_server_state_to_env_state(self, rs_state):
+    def _squeeze_agent_pose(self, rs_state):
         map_state_len = (self.map_size**2)*2
-        pose = rs_state[map_state_len+1 : map_state_len+4]
+        x, y, yaw = rs_state[map_state_len+1 : map_state_len+4]
+        return x, y, yaw
+    
+    def _robot_server_state_to_env_state(self, rs_state):
+        pose = self._squeeze_agent_pose(rs_state)
         odom_x, odom_y, yaw = transform_2d(pose[0], pose[1], pose[2], *self.start_frame)
         polar_r, polar_theta = utils.cartesian_to_polar_2d(x_target=odom_x, y_target=odom_y)
         
@@ -233,7 +237,7 @@ class Mir100NavEnv(gym.Env):
         
         min_pose_obs = np.array([min_polar_r, min_polar_theta, min_yaw])
         max_pose_obs = np.array([max_polar_r, max_polar_theta, max_yaw])
-        agent_pose_space = spaces.Box(low=min_pose_obs, high=max_pose_obs)
+        agent_pose_space = spaces.Box(low=min_pose_obs, high=max_pose_obs, dtype=np.float32)
         
         observation_space = spaces.Dict({
             'occupancy_grid': occupancy_grid_space,

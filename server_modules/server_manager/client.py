@@ -54,7 +54,7 @@ class Client():
         while (i<1000):
             try:
                 print('Killing Robot Server at {}:{} | Tentative {}'.format(self.ip,str(port),str(i+1)))
-                result = self.stub.KillServer(request= server_manager_pb2.RobotServer(port=port), timeout =60)
+                result = self.stub.KillServer(request= server_manager_pb2.RobotServer(port=port), timeout =600)
 
                 if result.success:
                     print('Successfully killed Robot Server at {}:{}'.format(self.ip,str(port)))
