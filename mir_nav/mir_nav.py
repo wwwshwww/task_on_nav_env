@@ -10,7 +10,7 @@ import robo_gym_server_modules.robot_server.client as rs_client
 from robo_gym.envs.simulation_wrapper import Simulation
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2
 
-from .utils import transform_2d, cartesian_to_polar_2d, polar_to_cartesian_2d
+from .utils import transform_2d, cartesian_to_polar_2d, polar_to_cartesian_2d, relative_to_origin
 
 from typing import List
 
@@ -150,7 +150,7 @@ class Mir100NavEnv(gym.Env):
         rs_action = [x, y, rs_action[2]]
         # Transformate coordinates of agent frame to map frame
         map_trans = polar_to_cartesian_2d(*self.state['agent_pose'][:2])
-        rs_action = transform_2d(
+        rs_action = relative_to_origin(
             rs_action[0], rs_action[1], rs_action[2], 
             map_trans[0], map_trans[1], self.state['agent_pose'][2]
         )
