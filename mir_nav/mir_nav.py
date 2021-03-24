@@ -53,6 +53,14 @@ class Mir100NavEnv(gym.Env):
         self.agent_pose = [0,0,0] # now pose [x,y,yaw] in world frame
         self.target_num = 0
         self.target_pose = [] # target poses [[x,y,yaw],] in world frame
+        self.target_found = [] # flag that target have been found for each
+        
+        self.goal_pose = [] # pose [x,y,yaw] that agent was going to go to
+        self.goal_threshold = [0.5, 0.5, 0.5]
+        self.is_reached_goal = False
+        self.is_done_action = False
+        
+        self.time_taken_action = 0 # time between send action and receive response of result from Robot Server
         
         # Connect to Robot Server
         if rs_address:
@@ -119,15 +127,20 @@ class Mir100NavEnv(gym.Env):
         # in World frame
         self.start_frame = rs_state[1+map_state_len : 1+map_state_len+3]
         
-        self.target_num = len(rs_state[ignore_index+10:])//3
         assert len(rs_state[ignore_index+10:]) % 3 == 0
+        self.target_num = len(rs_state[ignore_index+10:])//3
+        self.target_found = np.full([self.target_num], False)
             
         self.agent_pose = np.array(self.start_frame) # [x,y,yaw] pose in world frame
         self.target_pose = np.reshape(rs_state[ignore_index+10:], (self.target_num, 3))
+        
         self.agent_twist = rs_state[2+map_state_len : 2+map_state_len+2]
         self.map_trueth = rs_state[1+self.map_size**2 : 1+map_state_len]
         
         self.state = self._robot_server_state_to_env_state(rs_state)
+        
+        self.is_done_action = False
+        self.is_reached_goal = False
 
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -155,9 +168,16 @@ class Mir100NavEnv(gym.Env):
             map_trans[0], map_trans[1], self.state['agent_pose'][2]
         )
         
+        # ideal goal pose in world frame
+        self.goal_pose = relative_to_origin(rs_action[0],rs_action[1], rs_action[2], *self.start_frame)
+            
+        start_time = time.time()
+        
         # Send action to Robot Server
         if not self.client.send_action(rs_action):
             raise RobotServerError("send_action")
+            
+        self.time_taken_action = time.time() - start_time
         
         # Get state from Robot Server
         rs_state = self.client.get_state_msg().state
@@ -165,6 +185,9 @@ class Mir100NavEnv(gym.Env):
         self.state = self._robot_server_state_to_env_state(rs_state)
         # Set agent_pose in world frame
         self.agent_pose = self._squeeze_agent_pose(rs_state)
+        
+        self.is_reached_goal = self._check_goal(self.goal_pose, self.agent_pose)
+        self.is_done_action = True
         
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -202,6 +225,10 @@ class Mir100NavEnv(gym.Env):
 #                     + is_change_room + is_change_pose + room_generator_param
         
         return (self.map_size**2)*2 + 17
+    
+    def _check_goal(self, ideal_pose, actual_pose):
+        diff = np.array(ideal_pose) - np.array(actual_pose)
+        return all(np.abs(diff) < self.goal_threshold)
     
     def _squeeze_agent_pose(self, rs_state):
         map_state_len = (self.map_size**2)*2
@@ -245,6 +272,14 @@ class Mir100NavEnv(gym.Env):
         })
         
         return observation_space
+    
+class CubeRoomSearch(Mir100NavEnv, Simulation):
+    cmd = "roslaunch task_on_nav_robot_server sim_robot_server.launch"
+    def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
+        Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
+        Mir100NavEnv.__init__(self, rs_address=self.robot_server_ip, **kwargs)
+        
+        
         
 class CubeRoomOnNavigationStack(Mir100NavEnv, Simulation):
     cmd = "roslaunch task_on_nav_robot_server sim_robot_server.launch"
