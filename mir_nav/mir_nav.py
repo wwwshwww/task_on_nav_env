@@ -59,6 +59,7 @@ class Mir100NavEnv(gym.Env):
         self.goal_threshold = [0.5, 0.5, 0.5]
         self.is_reached_goal = False
         self.is_done_action = False
+        self.episode_start_time = 0
         
         self.time_taken_action = 0 # time between send action and receive response of result from Robot Server
         
@@ -141,6 +142,7 @@ class Mir100NavEnv(gym.Env):
         
         self.is_done_action = False
         self.is_reached_goal = False
+        self.episode_start_time = 0
 
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -152,6 +154,9 @@ class Mir100NavEnv(gym.Env):
     
     def step(self, action):
         self.elapsed_steps += 1
+        if not self.is_done_action:
+            self.episode_start_time = time.time()
+            self.is_done_action = True
         
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         
@@ -171,13 +176,13 @@ class Mir100NavEnv(gym.Env):
         # ideal goal pose in world frame
         self.goal_pose = relative_to_origin(rs_action[0],rs_action[1], rs_action[2], *self.start_frame)
             
-        start_time = time.time()
+        start = time.time()
         
         # Send action to Robot Server
         if not self.client.send_action(rs_action):
             raise RobotServerError("send_action")
             
-        self.time_taken_action = time.time() - start_time
+        self.time_taken_action = time.time() - start
         
         # Get state from Robot Server
         rs_state = self.client.get_state_msg().state
@@ -187,7 +192,6 @@ class Mir100NavEnv(gym.Env):
         self.agent_pose = self._squeeze_agent_pose(rs_state)
         
         self.is_reached_goal = self._check_goal(self.goal_pose, self.agent_pose)
-        self.is_done_action = True
         
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -275,11 +279,47 @@ class Mir100NavEnv(gym.Env):
     
 class CubeRoomSearch(Mir100NavEnv, Simulation):
     cmd = "roslaunch task_on_nav_robot_server sim_robot_server.launch"
+    
+    found_thresh = 0.75
+    too_long_time_thresh = 15
+    total_time_limit = 300
+    
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
         Mir100NavEnv.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
+    def _reward(self, rs_state, action):
+        reward = 0
+        done = False
+        info = {}
         
+        # check if there is target found
+        diff_targets = np.full([self.target_num,2], self.agent_pose[:2]) - self.target_pose[:,:2]
+        dist_targets = np.linalg.norm(diff_targets, axis=1)
+        are_found = np.logical_and(dist_targets<=self.found_thresh, np.logical_not(self.target_found))
+        idx_found = np.arange(self.target_num)[are_found]
+        
+        if len(idx_found) > 0:
+            self.target_found[idx_found[0]] = True
+            reward += 1.0
+            
+        if not self.is_reached_goal:
+            reward -= 0.5
+            
+        if self.time_taken_action > self.too_long_time_thresh:
+            reward -= 0.5
+            
+        done1 = np.sum(self.target_found) == self.target_num
+        done2 = time.time() - self.episode_start_time > self.total_time_limit
+            
+        if done1:
+            info['final_status'] = 'success to found all target'
+        elif done2:
+            info['final_status'] = 'exceed the time limit'
+            
+        done = done1 or done2
+            
+        return reward, done, info
         
 class CubeRoomOnNavigationStack(Mir100NavEnv, Simulation):
     cmd = "roslaunch task_on_nav_robot_server sim_robot_server.launch"
