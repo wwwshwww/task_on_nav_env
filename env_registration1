@@ -11,3 +11,9 @@ register(
     entry_point='robo_gym.envs:CubeRoomSearch',
     max_episode_steps=500
 )
+
+register(
+    id='CubeRoomSearchLikeContinuously-v0',
+    entry_point='robo_gym.envs:CubeRoomSearchLikeContinuously',
+    max_episode_steps=500
+)
