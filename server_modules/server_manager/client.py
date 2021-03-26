@@ -4,8 +4,6 @@ from robo_gym_server_modules.server_manager.grpc_msgs.python3 import server_mana
 
 ### copy this file to '/usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/server_manager/'
 
-START_TIMEOUT = 6000
-
 import sys
 
 class Client():
@@ -21,9 +19,8 @@ class Client():
             try:
                 print('Starting new Robot Server | Tentative {}'.format(str(i+1)))
                 req = server_manager_pb2.RobotServer(cmd= cmd, gui= gui)
-                rl_server = self.stub.StartNewServer(request= req, timeout =START_TIMEOUT)
-                print(type(rl_server))
-                print(rl_server.success, rl_server.cmd)
+                rl_server = self.stub.StartNewServer(request= req, timeout =240)
+                
                 if rl_server.success:
                     print('Successfully started Robot Server at {}:{}'.format(self.ip,str(rl_server.port)))
                     return (self.ip + ':'+str(rl_server.port))
@@ -54,7 +51,7 @@ class Client():
         while (i<1000):
             try:
                 print('Killing Robot Server at {}:{} | Tentative {}'.format(self.ip,str(port),str(i+1)))
-                result = self.stub.KillServer(request= server_manager_pb2.RobotServer(port=port), timeout =600)
+                result = self.stub.KillServer(request= server_manager_pb2.RobotServer(port=port), timeout =60)
 
                 if result.success:
                     print('Successfully killed Robot Server at {}:{}'.format(self.ip,str(port)))

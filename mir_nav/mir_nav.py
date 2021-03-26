@@ -46,7 +46,7 @@ class Mir100NavEnv(gym.Env):
         self.exist_initial_room = False
         
         self.action_space = spaces.Box(low=np.full([3], -1.0), high=np.full([3], 1.0))
-        self.action_range = np.array([self.movable_range, np.pi, np.pi])
+        self.action_range = np.array([self.movable_range, np.pi/2, np.pi/2])
         
         self.map_trueth = []
         self.start_frame = [0,0,0] # initial pose [x,y,yaw] in world frame when started episode 
@@ -361,7 +361,7 @@ class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
             reward += 50.0
             
         if self.is_reached_goal:
-            reward += 0.5
+            reward += 0.05
             
         if np.sum(self.target_found) == self.target_num:
             done = True
