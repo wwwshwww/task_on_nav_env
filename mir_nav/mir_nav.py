@@ -257,14 +257,14 @@ class Mir100NavEnv(gym.Env):
 #         state = np.concatenate([rs_state[1:self.map_size**2], [polar_r, polar_theta, yaw]])
         
         state = {
-            'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.int16),
+            'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.float32),
             'agent_pose': np.array([polar_r, polar_theta, yaw])
         }
 
         return state
     
     def _get_observation_space(self):
-        occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.map_size**2,), dtype=np.int16)
+        occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.map_size**2,), dtype=np.float32)
         
         min_polar_r = 0
         max_polar_r = np.inf
