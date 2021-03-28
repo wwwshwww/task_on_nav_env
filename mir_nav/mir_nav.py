@@ -64,6 +64,8 @@ class Mir100NavEnv(gym.Env):
         self.time_taken_action = 0 # time between send action and receive response of result from Robot Server
         self.total_time = 0
         
+        self.move_dist = 0
+        
         # Connect to Robot Server
         if rs_address:
             self.client = rs_client.Client(rs_address)
@@ -149,6 +151,7 @@ class Mir100NavEnv(gym.Env):
         self.is_reached_goal = False
         self.episode_start_time = 0
         self.total_time = 0
+        self.move_dist = 0
 
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -163,6 +166,8 @@ class Mir100NavEnv(gym.Env):
         if not self.is_done_action:
             self.episode_start_time = time.time()
             self.is_done_action = True
+            
+        start_pose = self.agent_pose
         
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         
@@ -197,6 +202,8 @@ class Mir100NavEnv(gym.Env):
         self.state = self._robot_server_state_to_env_state(rs_state)
         # Set agent_pose in world frame
         self.agent_pose = self._squeeze_agent_pose(rs_state)
+        
+        self.move_dist = np.linarg.norm(self.agent_pose[:2] - start_pose[:2])
         
         self.is_reached_goal = self._check_goal(self.goal_pose, self.agent_pose)
         
@@ -336,10 +343,10 @@ class CubeRoomSearch(Mir100NavEnv, Simulation):
         
 class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
     wait_for_current_action = 5
+    found_thresh = 0.75
+    move_dist_thresh = 0.7
     
     cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch wait_moved:=false sleep_time:={wait_for_current_action}"
-    
-    found_thresh = 0.75
     
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
@@ -360,7 +367,10 @@ class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
             self.target_found[idx_found[0]] = True
             reward += 50.0
             
-        if self.is_reached_goal:
+#         if self.is_reached_goal:
+#             reward += 0.05
+
+        if self.move_dist > self.move_dist_thresh:
             reward += 0.05
             
         if np.sum(self.target_found) == self.target_num:
