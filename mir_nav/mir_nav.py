@@ -237,7 +237,7 @@ class Mir100NavEnv(gym.Env):
         
         return (self.map_size**2)*2 + 17
     
-    def _check_goal(self, ideal_pose, actual_pose):
+    def _check_goal(self, ideal_pose, actual_pose) -> bool:
         diff = np.array(ideal_pose) - np.array(actual_pose)
         return all(np.abs(diff) < self.goal_threshold)
     
@@ -257,14 +257,14 @@ class Mir100NavEnv(gym.Env):
 #         state = np.concatenate([rs_state[1:self.map_size**2], [polar_r, polar_theta, yaw]])
         
         state = {
-            'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.float32),
+            'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.int16),
             'agent_pose': np.array([polar_r, polar_theta, yaw])
         }
 
         return state
     
     def _get_observation_space(self):
-        occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.map_size**2,), dtype=np.float32)
+        occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.map_size**2,), dtype=np.int16)
         
         min_polar_r = 0
         max_polar_r = np.inf
