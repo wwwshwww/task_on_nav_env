@@ -203,7 +203,7 @@ class Mir100NavEnv(gym.Env):
         # Set agent_pose in world frame
         self.agent_pose = self._squeeze_agent_pose(rs_state)
         
-        self.move_dist = np.linarg.norm(self.agent_pose[:2] - start_pose[:2])
+        self.move_dist = np.linalg.norm(np.array(self.agent_pose[:2]) - np.array(start_pose[:2]))
         
         self.is_reached_goal = self._check_goal(self.goal_pose, self.agent_pose)
         
