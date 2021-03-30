@@ -367,8 +367,8 @@ class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
             self.target_found[idx_found[0]] = True
             reward += 50.0
             
-#         if self.is_reached_goal:
-#             reward += 0.05
+        if self.is_reached_goal:
+            reward += 0.05
 
         if self.move_dist > self.move_dist_thresh:
             reward += 0.05
