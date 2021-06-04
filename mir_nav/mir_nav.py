@@ -97,6 +97,8 @@ class Mir100NavEnv(gym.Env):
             new_agent_pose (bool): is change pose in the room when initialize Environment
         """
         
+        print("reset!!!!")
+        
         self.elapsed_steps = 0
         self.prev_base_reward = None
         
@@ -222,7 +224,7 @@ class Mir100NavEnv(gym.Env):
     def _get_env_state_len(self) -> int:
         ## State include occupancy grid data and mir pose [x,y,yaw] in map frame 
         map_data = [0] * self.map_size**2
-        r_theta_yaw = [0.0, 0.0, 0.0]
+        r_theta_yaw = [0.0, 0.0, 0.0, 0.0, 0.0]
 
         env_state = map_data + r_theta_yaw
         
@@ -261,11 +263,16 @@ class Mir100NavEnv(gym.Env):
         # Normalize to +/- pi
         polar_theta = utils.normalize_angle_rad(polar_theta)
         
+        polar_theta_sin = np.sin(polar_theta)
+        polar_theta_cos = np.cos(polar_theta)
+        yaw_sin = np.sin(yaw)
+        yaw_cos = np.cos(yaw)
+        
 #         state = np.concatenate([rs_state[1:self.map_size**2], [polar_r, polar_theta, yaw]])
         
         state = {
             'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.float32),
-            'agent_pose': np.array([polar_r, polar_theta, yaw])
+            'agent_pose': np.array([polar_r, polar_theta_sin, polar_theta_cos, yaw_sin, yaw_cos])
         }
 
         return state
@@ -275,13 +282,17 @@ class Mir100NavEnv(gym.Env):
         
         min_polar_r = 0
         max_polar_r = np.inf
-        min_polar_theta = -np.pi
-        max_polar_theta = np.pi
-        min_yaw = -np.pi
-        max_yaw = np.pi
+        min_polar_theta_sin = -1
+        max_polar_theta_sin = 1
+        min_polar_theta_cos = -1
+        max_polar_theta_cos = 1
+        min_yaw_sin = -1
+        max_yaw_sin = 1
+        min_yaw_cos = -1
+        max_yaw_cos = 1
         
-        min_pose_obs = np.array([min_polar_r, min_polar_theta, min_yaw])
-        max_pose_obs = np.array([max_polar_r, max_polar_theta, max_yaw])
+        min_pose_obs = np.array([min_polar_r, min_polar_theta_sin, min_polar_theta_cos, min_yaw_sin, min_yaw_cos])
+        max_pose_obs = np.array([max_polar_r, max_polar_theta_sin, max_polar_theta_cos, max_yaw_sin, max_yaw_cos])
         agent_pose_space = spaces.Box(low=min_pose_obs, high=max_pose_obs, dtype=np.float32)
         
         observation_space = spaces.Dict({
