@@ -46,7 +46,7 @@ class Mir100NavEnv(gym.Env):
         self.exist_initial_room = False
         
         self.action_space = spaces.Box(low=np.full([3], -1.0), high=np.full([3], 1.0))
-        self.action_range = np.array([self.movable_range, np.pi/2, np.pi/2])
+        self.action_range = np.array([self.movable_range, np.pi/2, np.pi])
         
         self.map_trueth = []
         self.start_frame = [0,0,0] # initial pose [x,y,yaw] in world frame when started episode 
@@ -97,7 +97,7 @@ class Mir100NavEnv(gym.Env):
             new_agent_pose (bool): is change pose in the room when initialize Environment
         """
         
-        print("reset!!!!")
+        print(f"Resetting env... [room: {new_room}, pose: {new_agent_pose}]")
         
         self.elapsed_steps = 0
         self.prev_base_reward = None
@@ -180,10 +180,14 @@ class Mir100NavEnv(gym.Env):
         x, y = polar_to_cartesian_2d(rs_action[0], rs_action[1])
         rs_action = [x, y, rs_action[2]]
         # Transformate coordinates of agent frame to map frame
-        map_trans = polar_to_cartesian_2d(*self.state['agent_pose'][:2])
+        # sin theta -> theta
+        state_theta = np.arcsin(self.state['agent_pose'][1])
+        # (r, theta) -> (x, y) in map frame
+        map_trans = polar_to_cartesian_2d(self.state['agent_pose'][0], state_theta)
+        # calc relative pose
         rs_action = relative_to_origin(
             rs_action[0], rs_action[1], rs_action[2], 
-            map_trans[0], map_trans[1], self.state['agent_pose'][2]
+            map_trans[0], map_trans[1], np.arcsin(self.state['agent_pose'][3])
         )
         
         # ideal goal pose in world frame
@@ -272,7 +276,7 @@ class Mir100NavEnv(gym.Env):
         
         state = {
             'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.float32),
-            'agent_pose': np.array([polar_r, polar_theta_sin, polar_theta_cos, yaw_sin, yaw_cos])
+            'agent_pose': np.array([polar_r, polar_theta_sin, polar_theta_cos, yaw_sin, yaw_cos], dtype=np.float32)
         }
 
         return state
