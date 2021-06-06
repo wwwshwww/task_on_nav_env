@@ -14,12 +14,41 @@ from .utils import transform_2d, cartesian_to_polar_2d, polar_to_cartesian_2d, r
 
 from typing import List
 
+from collections import OrderedDict, deque
+
+def create_slice_dict(len_dict):
+    assert len([x for x in len_dict.values() if x <= 0]) <= 1
+    
+    start = 0
+    slice_dict = {}
+    for key in len_dict:
+        end = start+len_dict[key] if len_dict[key] > 0 else None
+        slice_dict[key] = slice(start, end)
+        start += len_dict[key]
+        
+    return slice_dict
+
 class Mir100NavEnv(gym.Env):
     real_robot = False
     slam_map_size = 512
     slam_resolution = 0.05
     map_size = 128
     resolution = slam_resolution * (slam_map_size / map_size)
+
+    rs_state_len_dict = OrderedDict(
+        map_size=1,
+        map_data=map_size**2,
+        trueth_map_data=map_size**2,
+        agent_pose=3,
+        agent_twist=2,
+        is_agent_collisioned=1,
+        new_room_flag=1,
+        new_agent_pose_flag=1,
+        room_generator_param=8,
+        target_poses=-1
+    )
+
+    rs_state_slice_dict = create_slice_dict(rs_state_len_dict)
     
     def __init__(self, rs_address=None, max_episode_steps=500, **kwargs):
         self.max_episode_steps = max_episode_steps
@@ -53,7 +82,6 @@ class Mir100NavEnv(gym.Env):
         self.agent_pose = [0,0,0] # now pose [x,y,yaw] in world frame
         self.target_num = 0
         self.target_pose = [] # target poses [[x,y,yaw],] in world frame
-        self.target_found = [] # flag that target have been found for each
         
         self.goal_pose = [] # pose [x,y,yaw] that agent was going to go to
         self.goal_threshold = [0.5, 0.5, 0.5]
@@ -64,7 +92,7 @@ class Mir100NavEnv(gym.Env):
         self.time_taken_action = 0 # time between send action and receive response of result from Robot Server
         self.total_time = 0
         
-        self.move_dist = 0
+        self.move_distance = 0
         
         # Connect to Robot Server
         if rs_address:
@@ -77,6 +105,11 @@ class Mir100NavEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
     
+    def get_from_rs_state(self, rs_state, key: str):
+        assert key in self.rs_state_slice_dict.keys()
+
+        return rs_state[self.rs_state_slice_dict[key]]
+
     def reset(self, 
               new_room: bool=False,
               new_agent_pose: bool=True, 
@@ -106,26 +139,23 @@ class Mir100NavEnv(gym.Env):
         self.state = {}
         rs_state = np.zeros(self._get_robot_server_state_len())
         
-        ignore_start = 1
-        map_state_len = (self.map_size**2)*2
-        ignore_len = map_state_len + 6
-        ignore_index = ignore_start + ignore_len
-        
         if not self.exist_initial_room:
             new_room = True
             self.exist_initial_room = True
         
-        rs_state[0] = self.map_size
-        rs_state[ignore_index] = new_room
-        rs_state[ignore_index+1] = new_agent_pose
-        rs_state[ignore_index+2] = obstacle_count
-        rs_state[ignore_index+3] = obstacle_size
-        rs_state[ignore_index+4] = target_size
-        rs_state[ignore_index+5] = room_length_max
-        rs_state[ignore_index+6] = room_mass_min
-        rs_state[ignore_index+7] = room_mass_max
-        rs_state[ignore_index+8] = wall_height
-        rs_state[ignore_index+9] = room_wall_thickness
+        rs_state[self.rs_state_slice_dict['map_size']] = [self.map_size]
+        rs_state[self.rs_state_slice_dict['new_room_flag']] = [new_room]
+        rs_state[self.rs_state_slice_dict['new_agent_pose_flag']] = [new_agent_pose]
+        rs_state[self.rs_state_slice_dict['room_generator_param']] = [
+            obstacle_count,
+            obstacle_size,
+            target_size,
+            room_length_max,
+            room_mass_min,
+            room_mass_max,
+            wall_height,
+            room_wall_thickness
+        ]
         
         state_msg = robot_server_pb2.State(state=rs_state)
         if not self.client.set_state_msg(state_msg):
@@ -135,17 +165,18 @@ class Mir100NavEnv(gym.Env):
         rs_state = copy.deepcopy(np.array(self.client.get_state_msg().state))
 
         # in World frame
-        self.start_frame = rs_state[1+map_state_len : 1+map_state_len+3]
+        self.start_frame = self.get_from_rs_state(rs_state, 'agent_pose')
         
-        assert len(rs_state[ignore_index+10:]) % 3 == 0
-        self.target_num = len(rs_state[ignore_index+10:])//3
-        self.target_found = np.full([self.target_num], False)
+        last_states = self.get_from_rs_state(rs_state, 'target_poses')
+        assert len(last_states) % 3 == 0
+        self.target_num = len(last_states)//3
+        
             
         self.agent_pose = np.array(self.start_frame) # [x,y,yaw] pose in world frame
-        self.target_pose = np.reshape(rs_state[ignore_index+10:], (self.target_num, 3))
+        self.target_pose = np.reshape(last_states, (self.target_num, 3))
         
-        self.agent_twist = rs_state[2+map_state_len : 2+map_state_len+2]
-        self.map_trueth = rs_state[1+self.map_size**2 : 1+map_state_len]
+        self.agent_twist = self.get_from_rs_state(rs_state, 'agent_twist')
+        self.map_trueth = self.get_from_rs_state(rs_state, 'trueth_map_data')
         
         self.state = self._robot_server_state_to_env_state(rs_state)
         
@@ -153,7 +184,7 @@ class Mir100NavEnv(gym.Env):
         self.is_reached_goal = False
         self.episode_start_time = 0
         self.total_time = 0
-        self.move_dist = 0
+        self.move_distance = 0
 
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(self.state):
@@ -165,6 +196,7 @@ class Mir100NavEnv(gym.Env):
     
     def step(self, action):
         self.elapsed_steps += 1
+
         if not self.is_done_action:
             self.episode_start_time = time.time()
             self.is_done_action = True
@@ -207,9 +239,9 @@ class Mir100NavEnv(gym.Env):
         # Convert the state from Robot Server format to environment format
         self.state = self._robot_server_state_to_env_state(rs_state)
         # Set agent_pose in world frame
-        self.agent_pose = self._squeeze_agent_pose(rs_state)
+        self.agent_pose = self.get_from_rs_state(rs_state, 'agent_pose')
         
-        self.move_dist = np.linalg.norm(np.array(self.agent_pose[:2]) - np.array(start_pose[:2]))
+        self.move_distance = np.linalg.norm(np.array(self.agent_pose[:2]) - np.array(start_pose[:2]))
         
         self.is_reached_goal = self._check_goal(self.goal_pose, self.agent_pose)
         
@@ -226,9 +258,9 @@ class Mir100NavEnv(gym.Env):
         pass
         
     def _get_env_state_len(self) -> int:
-        ## State include occupancy grid data and mir pose [x,y,yaw] in map frame 
+        ## State include occupancy grid data and mir pose [r,theta,yaw] in map frame 
         map_data = [0] * self.map_size**2
-        r_theta_yaw = [0.0, 0.0, 0.0, 0.0, 0.0]
+        r_theta_yaw = [0.0, 0.0, 0.0, 0.0, 0.0] # [r, theta_sin, theta_cos, yaw_sin, yaw_cos]
 
         env_state = map_data + r_theta_yaw
         
@@ -248,19 +280,16 @@ class Mir100NavEnv(gym.Env):
 #         rs_state = map_size + map_data + map_data_trueth + agent_pose + agent_twist + is_collision \
 #                     + is_change_room + is_change_pose + room_generator_param
         
-        return (self.map_size**2)*2 + 17
+        # return (self.map_size**2)*2 + 17
+
+        return sum([x for x in self.rs_state_len_dict.values() if x > 0])
     
     def _check_goal(self, ideal_pose, actual_pose) -> bool:
         diff = np.array(ideal_pose) - np.array(actual_pose)
         return all(np.abs(diff) < self.goal_threshold)
     
-    def _squeeze_agent_pose(self, rs_state):
-        map_state_len = (self.map_size**2)*2
-        x, y, yaw = rs_state[map_state_len+1 : map_state_len+4]
-        return x, y, yaw
-    
     def _robot_server_state_to_env_state(self, rs_state):
-        pose = self._squeeze_agent_pose(rs_state)
+        pose = self.get_from_rs_state(rs_state, 'agent_pose')
         odom_x, odom_y, yaw = transform_2d(pose[0], pose[1], pose[2], *self.start_frame)
         polar_r, polar_theta = utils.cartesian_to_polar_2d(x_target=odom_x, y_target=odom_y)
         
@@ -272,27 +301,26 @@ class Mir100NavEnv(gym.Env):
         yaw_sin = np.sin(yaw)
         yaw_cos = np.cos(yaw)
         
-#         state = np.concatenate([rs_state[1:self.map_size**2], [polar_r, polar_theta, yaw]])
-        
         state = {
-            'occupancy_grid': np.array(rs_state[1:1+self.map_size**2], dtype=np.float32),
+            'occupancy_grid': np.array(self.get_from_rs_state(rs_state, 'map_data'), dtype=np.float32),
             'agent_pose': np.array([polar_r, polar_theta_sin, polar_theta_cos, yaw_sin, yaw_cos], dtype=np.float32)
         }
 
         return state
     
     def _get_observation_space(self):
-        occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.map_size**2,), dtype=np.float32)
+        occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.rs_state_len_dict['map_data'],), dtype=np.float32)
         
         min_polar_r = 0
-        max_polar_r = np.inf
         min_polar_theta_sin = -1
-        max_polar_theta_sin = 1
         min_polar_theta_cos = -1
-        max_polar_theta_cos = 1
         min_yaw_sin = -1
-        max_yaw_sin = 1
         min_yaw_cos = -1
+
+        max_polar_r = np.inf
+        max_polar_theta_sin = 1
+        max_polar_theta_cos = 1
+        max_yaw_sin = 1
         max_yaw_cos = 1
         
         min_pose_obs = np.array([min_polar_r, min_polar_theta_sin, min_polar_theta_cos, min_yaw_sin, min_yaw_cos])
@@ -305,6 +333,60 @@ class Mir100NavEnv(gym.Env):
         })
         
         return observation_space
+
+class CubeRoomWithTargetFind(Mir100NavEnv):
+    
+    def __init__(self, *args, **kwargs):
+        Mir100NavEnv.__init__(self, *args, **kwargs, **kwargs)
+
+        self.target_found = [] # flag that target have been found for each
+
+    def reset(self, *args, **kwargs):
+        state = super().reset(*args, **kwargs)
+        self.target_found = np.full([self.target_num], False)
+        return state
+
+    def check_found_new_one(self, threshold) -> bool:
+        # check if there is target found
+        diff_targets = np.full([self.target_num,2], self.agent_pose[:2]) - self.target_pose[:,:2]
+        dist_targets = np.linalg.norm(diff_targets, axis=1)
+        are_found = np.logical_and(dist_targets <= threshold, np.logical_not(self.target_found))
+        idx_found = np.arange(self.target_num)[are_found]
+
+        found_id = -1
+        found = False
+
+        if len(idx_found) > 0:
+            found = True
+            found_id = idx_found[0]
+            self.target_found[found_id] = True
+
+        return found, found_id
+
+class CubeRoomWithMapDifferenceCalculate(Mir100NavEnv):
+    
+    def __init__(self, *args, **kwargs):
+        Mir100NavEnv.__init__(self, *args, **kwargs)
+
+        self.map_queue = deque(maxlen=2)
+
+    def reset(self, *args, **kwargs):
+        state = super().reset(*args, **kwargs)
+        self.map_queue = deque(maxlen=2)
+        return state
+
+    def step(self, *args, **kwargs):
+        self.map_queue.appendleft(self.state['occupancy_grid'])
+        reward, done, info = super().step(*args, **kwargs)
+        return self.state, reward, done, info
+
+    def calculate_both_maps_diff(self) -> int:
+        '''
+        Return how much decreased the unknown area as pixel num.
+        This function is supposed to be called in the reward function.
+        '''
+        return np.sum(self.map_queue[0] < 0) - np.sum(self.state['occupancy_grid'] < 0)
+
     
 class CubeRoomOnNavigationStack(Mir100NavEnv, Simulation):
     cmd = "roslaunch task_on_nav_robot_server sim_robot_server.launch"
@@ -312,7 +394,7 @@ class CubeRoomOnNavigationStack(Mir100NavEnv, Simulation):
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
         Mir100NavEnv.__init__(self, rs_address=self.robot_server_ip, **kwargs)
     
-class CubeRoomSearch(Mir100NavEnv, Simulation):
+class CubeRoomSearch(CubeRoomWithTargetFind, Simulation):
     cmd = "roslaunch task_on_nav_robot_server sim_robot_server.launch wait_moved:=true"
     
     found_thresh = 0.75
@@ -321,21 +403,16 @@ class CubeRoomSearch(Mir100NavEnv, Simulation):
     
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
-        Mir100NavEnv.__init__(self, rs_address=self.robot_server_ip, **kwargs)
+        CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
         reward = -0.05
         done = False
         info = {}
         
-        # check if there is target found
-        diff_targets = np.full([self.target_num,2], self.agent_pose[:2]) - self.target_pose[:,:2]
-        dist_targets = np.linalg.norm(diff_targets, axis=1)
-        are_found = np.logical_and(dist_targets<=self.found_thresh, np.logical_not(self.target_found))
-        idx_found = np.arange(self.target_num)[are_found]
+        is_found, _ = self.check_found_new_one(threshold=self.found_thresh)
         
-        if len(idx_found) > 0:
-            self.target_found[idx_found[0]] = True
+        if is_found:
             reward += 10.0
             
         if not self.is_reached_goal:
@@ -359,7 +436,7 @@ class CubeRoomSearch(Mir100NavEnv, Simulation):
 class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
     wait_for_current_action = 5
     found_thresh = 0.75
-    move_dist_thresh = 0.7
+    move_distance_thresh = 0.7
     
     cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch wait_moved:=false sleep_time:={wait_for_current_action}"
     
@@ -372,20 +449,12 @@ class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
         done = False
         info = {}
         
-        # check if there is target found
-        diff_targets = np.full([self.target_num,2], self.agent_pose[:2]) - self.target_pose[:,:2]
-        dist_targets = np.linalg.norm(diff_targets, axis=1)
-        are_found = np.logical_and(dist_targets<=self.found_thresh, np.logical_not(self.target_found))
-        idx_found = np.arange(self.target_num)[are_found]
+        is_found, _ = self.check_found_new_one(threshold=self.found_thresh)
         
-        if len(idx_found) > 0:
-            self.target_found[idx_found[0]] = True
+        if is_found:
             reward += 50.0
-            
-        if self.is_reached_goal:
-            reward += 0.05
 
-        if self.move_dist > self.move_dist_thresh:
+        if self.move_distance > self.move_distance_thresh:
             reward += 0.05
             
         if np.sum(self.target_found) == self.target_num:
@@ -398,3 +467,27 @@ class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
 
         return reward, done, info
         
+
+class CubeRoomMapExplorationLikeContinuously(CubeRoomWithMapDifferenceCalculate, Simulation):
+    wait_for_current_action = 5
+    
+    cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch wait_moved:=false sleep_time:={wait_for_current_action}"
+    
+    def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
+        Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
+        CubeRoomWithMapDifferenceCalculate.__init__(self, rs_address=self.robot_server_ip, **kwargs)
+        
+    def _reward(self, rs_state, action):
+        reward = -0.05
+        done = False
+        info = {}
+        
+        explored_pixel_num = self.calculate_both_maps_diff()
+
+        reward += explored_pixel_num
+
+        if self.elapsed_steps >= self.max_episode_steps:
+            done = True
+            info['final_status'] = 'max_steps_exceeded'
+
+        return reward, done, info

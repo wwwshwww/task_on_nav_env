@@ -2,3 +2,4 @@
 from .mir_nav.mir_nav import CubeRoomOnNavigationStack
 from .mir_nav.mir_nav import CubeRoomSearch
 from .mir_nav.mir_nav import CubeRoomSearchLikeContinuously
+from .mir_nav.mir_nav import CubeRoomMapExplorationLikeContinuously
