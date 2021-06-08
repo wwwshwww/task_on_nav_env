@@ -11,7 +11,7 @@ pip install -e ./robo-gym
 cp -r task_on_nav_env/mir_nav robo-gym/robo_gym/envs/
 cat task_on_nav_env/env_registration1 >> robo-gym/robo_gym/__init__.py
 cat task_on_nav_env/env_registration2 >> robo-gym/robo_gym/envs/__init__.py
-# 不要かも
+# may be unnecessary
 cp task_on_nav_env/server_modules/robot_server/* /usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/robot_server/
 cp task_on_nav_env/server_modules/server_manager/* /usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/server_manager/
 ```

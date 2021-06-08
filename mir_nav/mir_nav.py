@@ -433,7 +433,7 @@ class CubeRoomSearch(CubeRoomWithTargetFind, Simulation):
             
         return reward, done, info
         
-class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
+class CubeRoomSearchLikeContinuously(CubeRoomWithTargetFind, Simulation):
     wait_for_current_action = 5
     found_thresh = 0.75
     move_distance_thresh = 0.7
@@ -442,7 +442,7 @@ class CubeRoomSearchLikeContinuously(Mir100NavEnv, Simulation):
     
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
-        Mir100NavEnv.__init__(self, rs_address=self.robot_server_ip, **kwargs)
+        CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
         reward = -0.05
