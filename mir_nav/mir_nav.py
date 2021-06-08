@@ -337,7 +337,7 @@ class Mir100NavEnv(gym.Env):
 class CubeRoomWithTargetFind(Mir100NavEnv):
     
     def __init__(self, *args, **kwargs):
-        Mir100NavEnv.__init__(self, *args, **kwargs, **kwargs)
+        Mir100NavEnv.__init__(self, *args, **kwargs)
 
         self.target_found = [] # flag that target have been found for each
 
