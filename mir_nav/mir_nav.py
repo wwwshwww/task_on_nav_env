@@ -375,10 +375,10 @@ class CubeRoomWithMapDifferenceCalculate(Mir100NavEnv):
         self.map_queue = deque(maxlen=2)
         return state
 
-    def step(self, *args, **kwargs):
+    def step(self, action):
         self.map_queue.appendleft(self.state['occupancy_grid'])
-        reward, done, info = super().step(*args, **kwargs)
-        return self.state, reward, done, info
+        state, reward, done, info = super().step(action)
+        return state, reward, done, info
 
     def calculate_both_maps_diff(self) -> int:
         '''
