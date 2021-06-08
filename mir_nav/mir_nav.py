@@ -438,9 +438,12 @@ class CubeRoomSearchLikeContinuously(CubeRoomWithTargetFind, Simulation):
     found_thresh = 0.75
     move_distance_thresh = 0.7
     
-    cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch wait_moved:=false sleep_time:={wait_for_current_action}"
-    
-    def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
+    def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, gazebo_gui=False, **kwargs):
+        opt_wait_moved = 'wait_moved:=false'
+        opt_sleep_time = f'sleep_time:={self.wait_for_current_action}'
+        opt_gazebo_gui = f'gazebo_gui:={"true" if gazebo_gui else "false"}'
+        self.cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch {opt_wait_moved} {opt_sleep_time} {opt_gazebo_gui}"
+
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
         CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
@@ -471,11 +474,14 @@ class CubeRoomSearchLikeContinuously(CubeRoomWithTargetFind, Simulation):
 class CubeRoomMapExplorationLikeContinuously(CubeRoomWithMapDifferenceCalculate, Simulation):
     wait_for_current_action = 5
     
-    cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch wait_moved:=false sleep_time:={wait_for_current_action}"
-    
-    def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, **kwargs):
+    def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, gazebo_gui=False, **kwargs):
+        opt_wait_moved = 'wait_moved:=false'
+        opt_sleep_time = f'sleep_time:={self.wait_for_current_action}'
+        opt_gazebo_gui = f'gazebo_gui:={"true" if gazebo_gui else "false"}'
+        self.cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch {opt_wait_moved} {opt_sleep_time} {opt_gazebo_gui}"
+
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
-        CubeRoomWithMapDifferenceCalculate.__init__(self, rs_address=self.robot_server_ip, **kwargs)
+        CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
         reward = -0.05
