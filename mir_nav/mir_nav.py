@@ -376,7 +376,7 @@ class CubeRoomWithMapDifferenceCalculate(Mir100NavEnv):
         return state
 
     def step(self, action):
-        self.map_queue.appendleft(self.state['occupancy_grid'])
+        self.map_queue.append(self.state['occupancy_grid'])
         state, reward, done, info = super().step(action)
         return state, reward, done, info
 
@@ -385,7 +385,7 @@ class CubeRoomWithMapDifferenceCalculate(Mir100NavEnv):
         Return how much decreased the unknown area as pixel num.
         This function is supposed to be called in the reward function.
         '''
-        return np.sum(self.map_queue[0] < 0) - np.sum(self.state['occupancy_grid'] < 0)
+        return np.sum(self.map_queue[-1] < 0) - np.sum(self.state['occupancy_grid'] < 0)
 
     
 class CubeRoomOnNavigationStack(Mir100NavEnv, Simulation):
