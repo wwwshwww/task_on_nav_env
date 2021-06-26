@@ -20,6 +20,10 @@ cp task_on_nav_env/server_modules/robot_server/* /usr/local/lib/python3.6/dist-p
 cp task_on_nav_env/server_modules/server_manager/* /usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/server_manager/
 ```
 
+### Docker
+
+docker image using jupyter: `moyash/robo-gym-env-jupyter:cuberoom`
+
 ## Details
 
 Write you later.
