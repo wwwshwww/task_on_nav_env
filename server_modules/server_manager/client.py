@@ -1,10 +1,9 @@
+
 import grpc
 from grpc import RpcError
 from robo_gym_server_modules.server_manager.grpc_msgs.python3 import server_manager_pb2, server_manager_pb2_grpc
 
-### copy this file to '/usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/server_manager/'
 
-import sys
 
 class Client():
 
@@ -15,23 +14,23 @@ class Client():
     def start_new_server(self, cmd, gui):
 
         i =0
-        while (i<1000):
+        max_tentatives = 10
+        while (i<max_tentatives):
             try:
-                print('Starting new Robot Server | Tentative {}'.format(str(i+1)))
-                req = server_manager_pb2.RobotServer(cmd= cmd, gui= gui)
-                rl_server = self.stub.StartNewServer(request= req, timeout =240)
-                
+                print('Starting new Robot Server | Tentative {} of {}'.format(str(i+1),str(max_tentatives)))
+                rl_server = self.stub.StartNewServer(request= server_manager_pb2.RobotServer(cmd= cmd, \
+                                                                                             gui= gui), timeout =240)
+
                 if rl_server.success:
                     print('Successfully started Robot Server at {}:{}'.format(self.ip,str(rl_server.port)))
-                    return (self.ip + ':'+str(rl_server.port))
+                    return ('{}:{}'.format(self.ip,str(rl_server.port)))
                 else:
                     pass
-            except Exception as e:
-                print(e)
-                print("Unexpected error:", sys.exc_info()[0])
+            except:
+                pass
             i+=1
 
-        raise RuntimeError("Failed multiple tentatives to start new Robot Server")
+        raise RuntimeError('Failed {} tentatives to start new Robot Server'.format(str(max_tentatives)))
 
     def kill_server(self, port):
 
@@ -43,15 +42,16 @@ class Client():
                 address = port.split(':')
                 port=int(address[1])
             except:
-                raise RuntimeError("port argument is malformed")
+                raise RuntimeError('port argument is malformed')
         else:
-            raise RuntimeError("port argument is malformed")
+            raise RuntimeError('port argument is malformed')
 
         i=0
-        while (i<1000):
+        max_tentatives = 10
+        while (i<max_tentatives):
             try:
-                print('Killing Robot Server at {}:{} | Tentative {}'.format(self.ip,str(port),str(i+1)))
-                result = self.stub.KillServer(request= server_manager_pb2.RobotServer(port=port), timeout =60)
+                print('Killing Robot Server at {}:{} | Tentative {} of {}'.format(self.ip,str(port),str(i+1),str(max_tentatives)))
+                result = self.stub.KillServer(request= server_manager_pb2.RobotServer(port=port), timeout =100)
 
                 if result.success:
                     print('Successfully killed Robot Server at {}:{}'.format(self.ip,str(port)))
@@ -62,7 +62,7 @@ class Client():
                 pass
             i+=1
 
-        raise RuntimeError("Failed 5 tentatives of killing Robot Server")
+        raise RuntimeError('Failed {} tentatives of killing Robot Server'.forma(str(max_tentatives)))
 
     def kill_all(self):
 
@@ -73,15 +73,15 @@ class Client():
 
         for port in range(lower_bound_port,upper_bound_port):
             try:
-                self.channel = grpc.insecure_channel((ip + ':' + str(port)))
+                self.channel = grpc.insecure_channel('{}:{}'.format(ip,str(port)))
                 self.stub = server_manager_pb2_grpc.ServerManagerStub(self.channel)
                 self.ip = ip
                 self._verify_connection()
                 return True
             except RpcError as rpc_error:
                 pass
-        raise RuntimeError("Failed to connect to Server Manager")
+        raise RuntimeError('Failed to connect to Server Manager')
 
     def _verify_connection(self):
 
-        return self.stub.VerifyConnection(server_manager_pb2.Empty(), timeout=20).alive
+        return self.stub.VerifyConnection(server_manager_pb2.Empty(), timeout=100).alive
