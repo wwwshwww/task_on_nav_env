@@ -1,17 +1,10 @@
-import sys, time, math, copy
 import numpy as np
-import gym
-from gym import spaces, logger
-from gym.utils import seeding
-
-from robo_gym.utils import utils
-from robo_gym.utils.exceptions import InvalidStateError, RobotServerError
-import robo_gym_server_modules.robot_server.client as rs_client
+from gym import spaces
 from robo_gym.envs.simulation_wrapper import Simulation
-from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2
+from collections import deque
 
-from .utils import transform_2d, cartesian_to_polar_2d, polar_to_cartesian_2d, relative_to_origin, make_subjective_image
-from .mir_nav import Mir100NavEnv, create_slice_dict
+from .utils import transform_2d, make_subjective_image
+from .mir_nav import Mir100NavEnv
 
 class CubeRoomEnvObsMapOnly(Mir100NavEnv):
     '''
