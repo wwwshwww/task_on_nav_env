@@ -1,5 +1,8 @@
 
+# mir100 with navigation stack
 from .mir_nav.mir_nav import CubeRoomOnNavigationStack
 from .mir_nav.mir_nav import CubeRoomSearch
 from .mir_nav.mir_nav import CubeRoomSearchLikeContinuously
 from .mir_nav.mir_nav import CubeRoomMapExplorationLikeContinuously
+from .mir_nav.mir_nav_map import CubeSearchInCubeRoomObsMapOnly
+from .mir_nav.mir_nav_map import MapExploreInCubeRoomObsMapOnly

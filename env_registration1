@@ -21,5 +21,17 @@ register(
 register(
     id='CubeRoomMapExplorationLikeContinuously-v0',
     entry_point='robo_gym.envs:CubeRoomMapExplorationLikeContinuously',
-    max_episode_steps=100
+    max_episode_steps=500
+)
+
+register(
+    id='CubeSearchInCubeRoomObsMapOnly-v0', 
+    entry_point='robo_gym.envs:CubeSearchInCubeRoomObsMapOnly',
+    max_episode_steps=500
+)
+
+register(
+    id='MapExploreInCubeRoomObsMapOnly-v0', 
+    entry_point='robo_gym.envs:MapExploreInCubeRoomObsMapOnly',
+    max_episode_steps=500
 )

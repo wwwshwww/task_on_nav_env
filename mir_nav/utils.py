@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import affine_transform
 from robo_gym.utils import utils
 
 def transform_2d(target_x, target_y, target_yaw, origin_x, origin_y, origin_yaw):
@@ -34,3 +35,27 @@ def cartesian_to_polar_2d(x, y):
 
 def polar_to_cartesian_2d(r, theta):
     return r*np.cos(theta), r*np.sin(theta)
+
+def make_subjective_image(img, x, y, rad, order=1, cval=-1):
+    half_h = len(img)/2
+    half_w = len(img[0])/2
+    
+    t1 = np.array([
+        [1, 0, -half_h],
+        [0, 1, -half_w],
+        [0, 0, 1]
+    ])
+    
+    r = np.array([
+        [np.cos(rad), -np.sin(rad), 0],
+        [np.sin(rad), np.cos(rad), 0],
+        [0, 0, 1]
+    ])
+    
+    t2 = np.array([
+        [1, 0, half_h+x],
+        [0, 1, half_w+y], 
+        [0, 0, 1]
+    ])
+    affine = np.matmul(t2, np.matmul(r, t1))
+    return affine_transform(img, affine, order=order, cval=cval)

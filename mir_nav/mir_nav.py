@@ -211,15 +211,12 @@ class Mir100NavEnv(gym.Env):
         # Polar to Cartesian
         x, y = polar_to_cartesian_2d(rs_action[0], rs_action[1])
         rs_action = [x, y, rs_action[2]]
-        # Transformate coordinates of agent frame to map frame
-        # sin theta -> theta
-        state_theta = np.arcsin(self.state['agent_pose'][1])
-        # (r, theta) -> (x, y) in map frame
-        map_trans = polar_to_cartesian_2d(self.state['agent_pose'][0], state_theta)
+        # Transform coordinates of agent frame to map frame
+        odom_x, odom_y, yaw = transform_2d(self.agent_pose[0], self.agent_pose[1], self.agent_pose[2], *self.start_frame)
         # calc relative pose
         rs_action = relative_to_origin(
             rs_action[0], rs_action[1], rs_action[2], 
-            map_trans[0], map_trans[1], np.arcsin(self.state['agent_pose'][3])
+            odom_x, odom_y, yaw
         )
         
         # ideal goal pose in world frame
