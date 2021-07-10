@@ -128,6 +128,14 @@ class Mir100NavEnv(gym.Env):
         Args:
             new_room (bool): is generate new room when initialize Environment
             new_agent_pose (bool): is change pose in the room when initialize Environment
+            obstacle_count (int): count of cube putting in the room as obstacle
+            obstacle_size (float): size of cube as obstacle
+            target_size (float): size of cube as target
+            room_length_max (float): maximum value of room's length
+            room_mass_min (float): minimum value of room's area
+            room_mass_max (float): maximum value of room's area
+            wall_height (float): height of room's wall
+            room_wall_thickness (float): thickness of room's wall
         """
         
         print(f"Resetting env... [room: {new_room}, pose: {new_agent_pose}]")

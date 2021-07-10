@@ -1,4 +1,4 @@
-FROM jupyter/scipy-notebook:python-3.9.5
+FROM jupyter/scipy-notebook:python-3.9.4
 
 WORKDIR $HOME
 ENV LOCATION /opt/conda/lib/python3.9/site-packages
