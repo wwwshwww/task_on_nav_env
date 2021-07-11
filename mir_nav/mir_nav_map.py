@@ -11,6 +11,10 @@ class CubeRoomEnvObsMapOnly(Mir100NavEnv):
     Observation: Subjective Occupancy Grid Map: (map_size, map_size,)
     Action: Relative Goal Pose [polar r, polar theta, yaw angle]: (3,)
     '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.original_map = None
     
     def _get_observation_space(self):
         occupancy_grid_space = spaces.Box(low=-1, high=100, shape=(self.map_size,self.map_size,), dtype=np.float32)
@@ -20,6 +24,7 @@ class CubeRoomEnvObsMapOnly(Mir100NavEnv):
         pose = self.get_from_rs_state(rs_state, 'agent_pose')
         data = np.array(self.get_from_rs_state(rs_state, 'map_data'))
         map_img = data.reshape([self.map_size, self.map_size]).T
+        self.original_map = map_img
         odom_x, odom_y, yaw = transform_2d(pose[0], pose[1], pose[2], *self.start_frame)
         pix_x = odom_x / self.resolution
         pix_y = odom_y / self.resolution
@@ -67,7 +72,7 @@ class CubeRoomWithMapDifferenceCalculate(CubeRoomEnvObsMapOnly):
         return state
 
     def step(self, action):
-        self.map_queue.append(self.state)
+        self.map_queue.append(self.original_map)
         state, reward, done, info = super().step(action)
         return state, reward, done, info
 
@@ -76,7 +81,7 @@ class CubeRoomWithMapDifferenceCalculate(CubeRoomEnvObsMapOnly):
         Return how much decreased the unknown area as pixel num.
         This function is supposed to be called in the reward function.
         '''
-        return np.sum(self.map_queue[-1] < 0) - np.sum(self.state < 0)
+        return np.sum(self.map_queue[-1] < 0) - np.sum(self.original_map < 0)
     
 class CubeSearchInCubeRoomObsMapOnly(CubeRoomWithTargetFind, Simulation):
     wait_for_current_action = 5
@@ -125,7 +130,7 @@ class MapExploreInCubeRoomObsMapOnly(CubeRoomWithMapDifferenceCalculate, Simulat
         self.cmd = f"roslaunch task_on_nav_robot_server sim_robot_server.launch {opt_wait_moved} {opt_sleep_time} {opt_gazebo_gui}"
 
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
-        CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
+        CubeRoomWithMapDifferenceCalculate.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
         reward = -0.05
