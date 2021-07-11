@@ -3,6 +3,8 @@ FROM jupyter/scipy-notebook:python-3.9.5
 WORKDIR $HOME
 ENV LOCATION /opt/conda/lib/python3.9/site-packages
 
+RUN pip install pfrl
+
 RUN git clone https://github.com/jr-robotics/robo-gym.git && \
     git clone https://github.com/wwwshwww/task_on_nav_env.git && \
     pip install -e ./robo-gym && \
