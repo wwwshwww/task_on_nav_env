@@ -74,7 +74,7 @@ class Mir100NavEnv(gym.Env):
         
         self.exist_initial_room = False
         
-        self.action_space = spaces.Box(low=np.full([3], -1.0), high=np.full([3], 1.0))
+        self.action_space = spaces.Box(low=-1, high=1, shape=(3,))
         self.action_range = np.array([self.movable_range, np.pi/2, np.pi])
         
         self.map_trueth = []
@@ -211,6 +211,8 @@ class Mir100NavEnv(gym.Env):
             
         start_pose = self.agent_pose
         
+        action = np.clip(action, self.action_space.low, self.action_space.high)
+
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         
         rs_action = copy.deepcopy(action)
@@ -440,7 +442,7 @@ class CubeRoomSearch(CubeRoomWithTargetFind, Simulation):
         
 class CubeRoomSearchLikeContinuously(CubeRoomWithTargetFind, Simulation):
     wait_for_current_action = 5
-    found_thresh = 0.75
+    found_thresh = 1.1
     move_distance_thresh = 0.7
     
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, gazebo_gui=False, **kwargs):
@@ -463,7 +465,7 @@ class CubeRoomSearchLikeContinuously(CubeRoomWithTargetFind, Simulation):
             reward += 50.0
 
         if self.move_distance > self.move_distance_thresh:
-            reward += 0.05
+            reward += 0.5
             
         if np.sum(self.target_found) == self.target_num:
             done = True

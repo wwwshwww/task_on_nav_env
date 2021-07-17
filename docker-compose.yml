@@ -3,7 +3,7 @@ services:
   robo-gym-environment-jupyter:
     build: 
       context: .
-      dockerfile: jupyter.dockerfile
+      dockerfile: jupyter.Dockerfile
     # image: moyash/robo-gym-env-jupyter:cuberoom
     container_name: environment
     networks: 
