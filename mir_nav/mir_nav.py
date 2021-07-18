@@ -151,7 +151,10 @@ class Mir100NavEnv(gym.Env):
         state_msg = robot_server_pb2.State(state=rs_state)
         if not self.client.set_state_msg(state_msg):
             raise RobotServerError("set_state")
-            
+
+        # Wait refreshing ROS TF    
+        time.sleep(0.5)
+
         # Get Robot Server state
         rs_state = copy.deepcopy(np.array(self.client.get_state_msg().state))
 
