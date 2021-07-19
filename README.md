@@ -2,6 +2,21 @@
 
 ## Installation
 
+### Docker
+
+This Environment side can use from docker image below.   
+`moyash/robo-gym-env-jupyter:cuberoom`
+
+Usage:
+
+```bash
+docker run --gpus all --user=root -p 8888:8888 moyash/robo-gym-env-jupyter jupyter lab --allow-root --LabApp.token='' --ip='0.0.0.0'
+```
+
+You can use this environment with jupyter lab by open http://localhost:8888 on your browser.
+
+### Manually
+
 ```bash
 git clone https://github.com/jr-robotics/robo-gym.git
 git clone https://github.com/wwwshwww/task_on_nav_env.git
@@ -19,10 +34,6 @@ Have to change path that will be placed to paste to appropriate place of `robo_g
 cp task_on_nav_env/server_modules/robot_server/* /usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/robot_server/
 cp task_on_nav_env/server_modules/server_manager/* /usr/local/lib/python3.6/dist-packages/robo_gym_server_modules/server_manager/
 ```
-
-### Docker
-
-docker image using jupyter: `moyash/robo-gym-env-jupyter:cuberoom`
 
 ## Details
 
