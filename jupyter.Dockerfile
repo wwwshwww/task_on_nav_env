@@ -4,7 +4,7 @@ WORKDIR $HOME
 ENV MODULE_PATH=/opt/conda/lib/python3.9/site-packages MY_PKG=task_on_nav_env
 
 RUN git clone https://github.com/jr-robotics/robo-gym.git
-ADD ./* ${MY_PKG}/
+ADD ./ ./${MY_PKG}
 
 RUN pip install -e ./robo-gym && pip install pfrl fastprogress &&\
     cp -r ${MY_PKG}/mir_nav robo-gym/robo_gym/envs/ && \
