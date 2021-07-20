@@ -10,7 +10,7 @@ def env(request):
 
 @pytest.mark.commit 
 def test_initialization(env):
-    env.reset()
+    env.reset(new_room=True, new_agent_pose=True)
     done = False
     for _ in range(10):
         if not done:
