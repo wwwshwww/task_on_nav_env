@@ -11,7 +11,7 @@ services:
     ports:
       - "6060:8888"
     user: root
-    command: jupyter lab --allow-root --LabApp.token=''  --ip='0.0.0.0'
+    command: jupyter lab --allow-root --LabApp.token='' --ip='0.0.0.0' --no-browser
   robo-gym-robot-server:
     image: moyash/robo-gym-rs:cuberoom
     container_name: robot-server
