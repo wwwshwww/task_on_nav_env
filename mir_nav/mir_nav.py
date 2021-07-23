@@ -17,6 +17,10 @@ from typing import List
 
 from collections import OrderedDict, deque
 
+REWARD_DISCOVER = 30
+REWARD_MOVE = 0.5
+REWARD_DEFAULT = -0.05
+
 class Mir100NavEnv(gym.Env):
     real_robot = False
     slam_map_size = 512
@@ -399,7 +403,7 @@ class CubeRoomSearch(CubeRoomWithTargetFind, Simulation):
         CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
-        reward = -0.05
+        reward = REWARD_DEFAULT
         done = False
         info = {}
         
@@ -441,17 +445,17 @@ class CubeRoomSearchLikeContinuously(CubeRoomWithTargetFind, Simulation):
         CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
-        reward = -0.05
+        reward = REWARD_DEFAULT
         done = False
         info = {}
         
         is_found, _ = self.check_found_new_one(threshold=self.found_thresh)
         
         if is_found:
-            reward += 50.0
+            reward += REWARD_DISCOVER
 
         if self.move_distance > self.move_distance_thresh:
-            reward += 0.5
+            reward += REWARD_MOVE
             
         if np.sum(self.target_found) == self.target_num:
             done = True
@@ -477,13 +481,13 @@ class CubeRoomMapExplorationLikeContinuously(CubeRoomWithMapDifferenceCalculate,
         CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
-        reward = -0.05
+        reward = REWARD_DEFAULT
         done = False
         info = {}
         
         explored_pixel_num = self.calculate_both_maps_diff()
 
-        reward += explored_pixel_num
+        reward += explored_pixel_num / 10
 
         if self.elapsed_steps >= self.max_episode_steps:
             done = True

@@ -5,6 +5,7 @@ from collections import deque
 
 from .utils import transform_2d, make_subjective_image
 from .mir_nav import Mir100NavEnv
+from .mir_nav import REWARD_DEFAULT, REWARD_MOVE, REWARD_DISCOVER
 
 class CubeRoomEnvObsMapOnly(Mir100NavEnv):
     '''
@@ -98,17 +99,17 @@ class CubeSearchInCubeRoomObsMapOnly(CubeRoomWithTargetFind, Simulation):
         CubeRoomWithTargetFind.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
-        reward = -0.05
+        reward = REWARD_DEFAULT
         done = False
         info = {}
         
         is_found, _ = self.check_found_new_one(threshold=self.found_thresh)
         
         if is_found:
-            reward += 50.0
+            reward += REWARD_DISCOVER
 
         if self.move_distance > self.move_distance_thresh:
-            reward += 0.05
+            reward += REWARD_MOVE
             
         if np.sum(self.target_found) == self.target_num:
             done = True
@@ -133,7 +134,7 @@ class MapExploreInCubeRoomObsMapOnly(CubeRoomWithMapDifferenceCalculate, Simulat
         CubeRoomWithMapDifferenceCalculate.__init__(self, rs_address=self.robot_server_ip, **kwargs)
         
     def _reward(self, rs_state, action):
-        reward = -0.05
+        reward = REWARD_DEFAULT
         done = False
         info = {}
         
