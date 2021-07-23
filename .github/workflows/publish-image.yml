@@ -27,5 +27,6 @@ jobs:
         uses: docker/build-push-action@v2.6.1
         with:
           context: .
+          file: jupyter.Dockerfile
           push: true
           tags: ${{ env.IMAGE_NAME }}  
