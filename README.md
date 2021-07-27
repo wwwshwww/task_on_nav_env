@@ -10,7 +10,7 @@ This Environment side can use from docker image below.
 Usage:
 
 ```bash
-docker run --gpus all --user=root -p 8888:8888 moyash/robo-gym-env-jupyter jupyter lab --allow-root --LabApp.token='' --ip='0.0.0.0'
+docker run --gpus all --user=root -p 8888:8888 moyash/robo-gym-env-jupyter:cuberoom jupyter lab --allow-root --LabApp.token='' --ip='0.0.0.0'
 ```
 
 You can use this environment with jupyter lab by open http://localhost:8888 on your browser.
