@@ -30,6 +30,11 @@ class CubeRoomEnvObsMapOnly(Mir100NavEnv):
         pix_x = odom_x / self.resolution
         pix_y = odom_y / self.resolution
         return make_subjective_image(map_img, pix_x, pix_y, yaw).astype(np.float32)
+
+    def get_world_map(self, img, subject_x, subject_y, subject_yaw, world_x=0, world_y=0, world_yaw=0):
+        trans = transform_2d(world_x, world_y, world_yaw, subject_x, subject_y, subject_yaw)
+        trans[:2] /= self.resolution
+        return make_subjective_image(img, *trans)
     
 class CubeRoomWithTargetFind(CubeRoomEnvObsMapOnly):
     
