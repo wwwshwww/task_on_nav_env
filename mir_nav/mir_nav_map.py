@@ -22,8 +22,8 @@ class CubeRoomEnvObsMapOnly(Mir100NavEnv):
         return occupancy_grid_space
     
     def _robot_server_state_to_env_state(self, rs_state):
-        pose = self.rss_manager.get_from_rs_state(rs_state, 'agent_pose')
-        data = np.array(self.rss_manager.get_from_rs_state(rs_state, 'map_data'))
+        pose = self.rss_manager.get(rs_state, 'agent_pose')
+        data = np.array(self.rss_manager.get(rs_state, 'map_data'))
         map_img = data.reshape([self.map_size, self.map_size]).T
         self.original_map = map_img
         odom_x, odom_y, yaw = transform_2d(pose[0], pose[1], pose[2], *self.start_frame)

@@ -4,6 +4,8 @@ import gym
 from gym import spaces, logger
 from gym.utils import seeding
 
+from labeled_mask import SimpleSlicer
+
 from robo_gym.utils import utils
 from robo_gym.utils.exceptions import InvalidStateError, RobotServerError
 import robo_gym_server_modules.robot_server.client as rs_client
@@ -11,7 +13,6 @@ from robo_gym.envs.simulation_wrapper import Simulation
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2
 
 from .utils import transform_2d, cartesian_to_polar_2d, polar_to_cartesian_2d, relative_to_origin
-from .rs_state_util import RobotServerStateManager
 
 from typing import List
 
@@ -40,7 +41,7 @@ class Mir100NavEnv(gym.Env):
         room_generator_param=8,
         target_poses=-1
     )
-    rss_manager = RobotServerStateManager(state_len_dict)
+    rss_manager = SimpleSlicer(state_len_dict)
     
     def __init__(self, rs_address=None, max_episode_steps=500, **kwargs):
         self.max_episode_steps = max_episode_steps
@@ -163,9 +164,9 @@ class Mir100NavEnv(gym.Env):
         rs_state = copy.deepcopy(np.array(self.client.get_state_msg().state))
 
         # in World frame
-        self.start_frame = self.rss_manager.get_from_rs_state(rs_state, 'agent_pose')
+        self.start_frame = self.rss_manager.get(rs_state, 'agent_pose')
         
-        last_states = self.rss_manager.get_from_rs_state(rs_state, 'target_poses')
+        last_states = self.rss_manager.get(rs_state, 'target_poses')
         assert len(last_states) % 3 == 0
         self.target_num = len(last_states)//3
         
@@ -173,8 +174,8 @@ class Mir100NavEnv(gym.Env):
         self.agent_pose = np.array(self.start_frame) # [x,y,yaw] pose in world frame
         self.target_pose = np.reshape(last_states, (self.target_num, 3))
         
-        self.agent_twist = self.rss_manager.get_from_rs_state(rs_state, 'agent_twist')
-        self.map_trueth = self.rss_manager.get_from_rs_state(rs_state, 'trueth_map_data')
+        self.agent_twist = self.rss_manager.get(rs_state, 'agent_twist')
+        self.map_trueth = self.rss_manager.get(rs_state, 'trueth_map_data')
         
         self.state = self._robot_server_state_to_env_state(rs_state)
         
@@ -236,7 +237,7 @@ class Mir100NavEnv(gym.Env):
         # Convert the state from Robot Server format to environment format
         self.state = self._robot_server_state_to_env_state(rs_state)
         # Set agent_pose in world frame
-        self.agent_pose = self.rss_manager.get_from_rs_state(rs_state, 'agent_pose')
+        self.agent_pose = self.rss_manager.get(rs_state, 'agent_pose')
         
         self.move_distance = np.linalg.norm(np.array(self.agent_pose[:2]) - np.array(start_pose[:2]))
         
@@ -286,7 +287,7 @@ class Mir100NavEnv(gym.Env):
         return all(np.abs(diff) < self.goal_threshold)
     
     def _robot_server_state_to_env_state(self, rs_state):
-        pose = self.rss_manager.get_from_rs_state(rs_state, 'agent_pose')
+        pose = self.rss_manager.get(rs_state, 'agent_pose')
         odom_x, odom_y, yaw = transform_2d(pose[0], pose[1], pose[2], *self.start_frame)
         polar_r, polar_theta = utils.cartesian_to_polar_2d(x_target=odom_x, y_target=odom_y)
         
@@ -299,7 +300,7 @@ class Mir100NavEnv(gym.Env):
         yaw_cos = np.cos(yaw)
         
         state = {
-            'occupancy_grid': np.array(self.rss_manager.get_from_rs_state(rs_state, 'map_data'), dtype=np.float32),
+            'occupancy_grid': np.array(self.rss_manager.get(rs_state, 'map_data'), dtype=np.float32),
             'agent_pose': np.array([polar_r, polar_theta_sin, polar_theta_cos, yaw_sin, yaw_cos], dtype=np.float32)
         }
 

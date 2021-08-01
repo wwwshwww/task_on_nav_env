@@ -3,7 +3,7 @@ FROM jupyter/scipy-notebook:python-3.9.5
 WORKDIR $HOME
 ENV MODULE_PATH=/opt/conda/lib/python3.9/site-packages MY_PKG=task_on_nav_env
 
-RUN pip install pfrl
+RUN pip install pfrl labeled-mask
 
 ADD ./ ./${MY_PKG}
 RUN git clone https://github.com/jr-robotics/robo-gym.git && \
